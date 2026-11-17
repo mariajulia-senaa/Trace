@@ -416,3 +416,29 @@ textarea {
   .barra-info { align-items: flex-start; }
   .privacidade { display: none; }
 }
+
+/* ------------------------------------------- fatura: tabela editável */
+.cabeca-lanc { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; flex-wrap: wrap; margin-bottom: 12px; }
+.tabela.edita { min-width: 760px; }
+.tabela.edita .linha { grid-template-columns: 150px minmax(0, 1fr) 190px 120px 100px; padding-top: 6px; padding-bottom: 6px; min-height: 48px; }
+.tabela.edita .linha.cabecalho { min-height: 34px; padding-top: 0; padding-bottom: 0; }
+.tabela.edita .linha.nova { background: var(--superficie-2); border-top: 1px solid var(--borda); }
+.tabela.edita input[type="date"],
+.tabela.edita input[type="text"] {
+  width: 100%;
+  min-width: 0;
+  height: 34px;
+  padding: 0 10px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--texto);
+  font: 14px 'Inter', system-ui, sans-serif;
+}
+.tabela.edita .linha.nova input { border-color: var(--borda); background: var(--fundo); }
+.tabela.edita input:hover { border-color: var(--borda); }
+.tabela.edita input[type="date"] { color-scheme: dark; cursor: pointer; }
+.tabela.edita input.direita { text-align: right; }
+.tabela.edita .cat.nota { font-size: 12px; }
+.como-lista textarea { min-height: 120px; }
+.botao.primario.pequeno { color: var(--tinta-destaque); }

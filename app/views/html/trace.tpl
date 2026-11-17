@@ -34,7 +34,7 @@
     <section id="fatura" class="painel-aba" role="tabpanel" aria-labelledby="aba-fatura">
         <div class="titulo-pagina">
             <h1>Fatura</h1>
-            <p>Defina seu limite, cole a fatura e veja pra onde o dinheiro foi.</p>
+            <p>Defina seu limite, preencha a fatura e veja pra onde o dinheiro foi.</p>
         </div>
 
         <div class="linha-cards">
@@ -61,7 +61,7 @@
         <div class="card medidor" aria-live="polite">
             <div class="medidor-topo">
                 <span class="selo ok" id="m-selo">Tranquilo</span>
-                <span class="medidor-frase" id="m-frase">Cole sua fatura e clique em Analisar para começar.</span>
+                <span class="medidor-frase" id="m-frase">Adicione os lançamentos da fatura para começar.</span>
             </div>
             <div class="trilho grande">
                 <div class="preenche ok" id="m-barra" style="width: 0%"></div>
@@ -79,55 +79,57 @@
             </div>
         </div>
 
-        <div class="duas-colunas">
-            <div class="card coluna-estreita">
+        <div class="card sem-padding-x">
+            <div class="com-padding-x cabeca-lanc">
                 <div>
-                    <h2>Cole sua fatura</h2>
-                    <p class="nota">Uma linha por lançamento: data, estabelecimento e valor.</p>
+                    <h2>Lançamentos da fatura</h2>
+                    <p class="nota">Escolha a data no calendário, digite o estabelecimento e o valor e clique em Adicionar. A categoria é sugerida sozinha.</p>
                 </div>
-                <textarea id="fatura-texto" aria-label="Texto da fatura" spellcheck="false"
-                          placeholder="05/11 UBER *TRIP 23,90&#10;06/11 NETFLIX.COM 55,90&#10;07/11 SUPERMERCADO BOM PRECO 212,35"></textarea>
                 <div class="botoes">
-                    <button type="button" class="botao primario" id="btn-analisar">Analisar fatura</button>
                     <button type="button" class="botao" id="btn-exemplo">Carregar exemplo</button>
-                </div>
-                <div class="botoes">
                     <label class="botao pequeno" for="arquivo">Importar CSV ou TXT</label>
                     <input type="file" id="arquivo" accept=".csv,.txt,text/csv,text/plain" hidden>
                     <button type="button" class="botao pequeno" id="btn-limpar">Limpar fatura</button>
                 </div>
-                <p class="nota" id="fatura-status" role="status" aria-live="polite"></p>
-                <span class="nota com-icone">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>
-                    Nada é enviado: a análise roda no seu navegador.
-                </span>
             </div>
 
-            <div class="card coluna-larga sem-padding-x">
-                <div class="com-padding-x">
-                    <h2>Lançamentos</h2>
-                    <p class="nota">Categorizados por palavras-chave. Corrija qualquer um que caiu em "Outros".</p>
-                </div>
-                <div id="lanc-tabela"></div>
-                <p class="nota com-padding-x">Ao corrigir uma categoria, o Trace aplica a mesma regra aos lançamentos parecidos.</p>
+            <div id="lanc-tabela"></div>
+            <p class="nota com-padding-x" id="fatura-status" role="status" aria-live="polite"></p>
+            <p class="nota com-padding-x">Ao corrigir uma categoria, o Trace aplica a mesma regra aos lançamentos parecidos.</p>
 
-                <details class="como com-padding-x">
-                    <summary>Como o Trace categoriza?</summary>
-                    <div class="como-lista">
-                        % for c in categorias:
-                        <p>
-                            <i class="dot" style="background: {{c.cor}}"></i>
-                            <strong>{{c.nome}}</strong>:
-                            % if c.palavras_chave:
-                            {{', '.join(c.palavras_chave)}}
-                            % else:
-                            tudo o que não casar com as outras categorias
-                            % end
-                        </p>
-                        % end
+            <details class="como com-padding-x">
+                <summary>Prefere colar a fatura como texto?</summary>
+                <div class="como-lista">
+                    <p class="nota">Uma linha por lançamento: data, estabelecimento e valor. Isso substitui a tabela.</p>
+                    <textarea id="fatura-texto" aria-label="Texto da fatura" spellcheck="false"
+                              placeholder="05/11 UBER *TRIP 23,90&#10;06/11 NETFLIX.COM 55,90&#10;07/11 SUPERMERCADO BOM PRECO 212,35"></textarea>
+                    <div class="botoes">
+                        <button type="button" class="botao primario" id="btn-analisar">Analisar texto</button>
                     </div>
-                </details>
-            </div>
+                </div>
+            </details>
+
+            <details class="como com-padding-x">
+                <summary>Como o Trace categoriza?</summary>
+                <div class="como-lista">
+                    % for c in categorias:
+                    <p>
+                        <i class="dot" style="background: {{c.cor}}"></i>
+                        <strong>{{c.nome}}</strong>:
+                        % if c.palavras_chave:
+                        {{', '.join(c.palavras_chave)}}
+                        % else:
+                        tudo o que não casar com as outras categorias
+                        % end
+                    </p>
+                    % end
+                </div>
+            </details>
+
+            <span class="nota com-icone com-padding-x">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>
+                Nada é enviado: tudo roda no seu navegador.
+            </span>
         </div>
     </section>
 

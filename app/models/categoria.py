@@ -45,5 +45,11 @@ class Categoria():
             Categoria('Educação', '#7DD3FC',
                       ['CURSO', 'UDEMY', 'ALURA', 'COURSERA', 'FACULDADE', 'ESCOLA',
                        'LIVRARIA', 'MENSALIDADE', 'UNIVERSIDADE'], 150),
+            Categoria('Moda e beleza', '#E879F9',
+                      ['ROUPA', 'VESTIDO', 'CAMISA', 'CAMISETA', 'CALCA', 'BLUSA',
+                       'SAIA', 'JAQUETA', 'SAPATO', 'TENIS', 'SANDALIA', 'BOTA',
+                       'CALCADO', 'BOLSA', 'MAQUIAGEM', 'BATOM', 'PERFUMARIA',
+                       'COSMETICO', 'BOTICARIO', 'NATURA', 'SEPHORA', 'RENNER',
+                       'RIACHUELO', 'ZARA', 'SHEIN', 'HERING', 'MARISA'], 250),
             Categoria('Outros', '#7A8A84', [], 200)
         ]

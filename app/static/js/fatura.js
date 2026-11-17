@@ -50,18 +50,22 @@
         return;
       }
       let data = m[1];
+      let ano = new Date().getFullYear();
       if (/^\d{4}-/.test(data)) {
         const p = data.split('-');
+        ano = Number(p[0]);
         data = p[2] + '/' + p[1];
       } else {
-        data = data.split('/').slice(0, 2).map((x) => x.padStart(2, '0')).join('/');
+        const p = data.split('/');
+        if (p[2]) ano = p[2].length === 2 ? 2000 + Number(p[2]) : Number(p[2]);
+        data = p.slice(0, 2).map((x) => x.padStart(2, '0')).join('/');
       }
       const valor = T.num(m[3]);
       if (!(valor > 0)) {
         ignoradas++;
         return;
       }
-      itens.push({ id: itens.length + 1, data, desc: m[2].replace(/\s+/g, ' ').trim(), valor });
+      itens.push({ id: itens.length + 1, data, ano, desc: m[2].replace(/\s+/g, ' ').trim(), valor });
     });
     return { itens, ignoradas };
   }
@@ -93,6 +97,30 @@
       }
     }
     return 'Outros';
+  }
+
+  // ---------- datas ----------
+  // O calendário (input date) trabalha com aaaa-mm-dd; o resto do Trace usa dd/mm.
+  const hojeISO = () => {
+    const d = new Date();
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  };
+  const paraISO = (l) => (l.ano || new Date().getFullYear()) + '-' + l.data.split('/').reverse().join('-');
+  const deISO = (iso) => {
+    const p = iso.split('-');
+    return { ano: Number(p[0]), data: p[2] + '/' + p[1] };
+  };
+
+  let rascunho = { iso: hojeISO(), desc: '', valor: '' };
+  let editando = false;   // true enquanto a pessoa digita numa linha: evita redesenhar a tabela
+
+  function editar(fn) {
+    editando = true;
+    try { T.alterar(fn); } finally { editando = false; }
+  }
+
+  function proximoId() {
+    return T.state.lancamentos.reduce((m, l) => Math.max(m, l.id), 0) + 1;
   }
 
   // ---------- mensagens ----------
@@ -162,8 +190,85 @@
       e.target.value = '';
     });
 
+    const tabela = $('#lanc-tabela');
+
+    // Linha de novo lançamento.
+    function adicionar() {
+      const desc = rascunho.desc.replace(/\s+/g, ' ').trim();
+      const valor = T.num(rascunho.valor);
+      if (!rascunho.iso || !desc || !(valor > 0)) {
+        aviso('Preencha a data, o estabelecimento e um valor maior que zero.');
+        return;
+      }
+      const d = deISO(rascunho.iso);
+      T.alterar((s) => {
+        s.lancamentos.push({ id: proximoId(), data: d.data, ano: d.ano, desc, valor: T.round2(valor), categoria: categorizar(desc, s.regras) });
+      });
+      rascunho = { iso: rascunho.iso, desc: '', valor: '' };
+      T.redesenhar();
+      const campo = $('#novo-desc');
+      if (campo) campo.focus();
+      aviso('Lançamento adicionado.');
+    }
+
+    tabela.addEventListener('input', (e) => {
+      const el = e.target;
+      if (el.id === 'novo-data') rascunho.iso = el.value;
+      else if (el.id === 'novo-desc') rascunho.desc = el.value;
+      else if (el.id === 'novo-valor') rascunho.valor = el.value;
+    });
+    tabela.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && e.target.closest('.linha.nova')) {
+        e.preventDefault();
+        adicionar();
+      }
+    });
+    tabela.addEventListener('click', (e) => {
+      if (e.target.closest('#novo-add')) return adicionar();
+      const x = e.target.closest('[data-remover]');
+      if (x) {
+        const id = Number(x.dataset.remover);
+        T.alterar((s) => (s.lancamentos = s.lancamentos.filter((l) => l.id !== id)));
+        aviso('Lançamento removido.');
+      }
+    });
+
+    // Edição direta de uma linha existente (data, estabelecimento, valor).
+    tabela.addEventListener('change', (e) => {
+      const el = e.target.closest('input[data-campo]');
+      if (!el) return;
+      const id = Number(el.dataset.id);
+      const campo = el.dataset.campo;
+      const atual = T.state.lancamentos.find((l) => l.id === id);
+      if (!atual) return;
+      let ok = true;
+      if (campo === 'data') {
+        if (el.value) editar(() => Object.assign(atual, deISO(el.value)));
+        else ok = false;
+      } else if (campo === 'desc') {
+        const desc = el.value.replace(/\s+/g, ' ').trim();
+        if (desc) {
+          editar((s) => {
+            atual.desc = desc;
+            atual.categoria = categorizar(desc, s.regras);
+          });
+          T.redesenhar();   // a categoria pode ter mudado
+        } else ok = false;
+      } else if (campo === 'valor') {
+        const v = T.num(el.value);
+        if (v > 0) {
+          editar(() => (atual.valor = T.round2(v)));
+          el.value = T.dec(atual.valor);
+        } else ok = false;
+      }
+      if (!ok) {
+        aviso('Valor inválido: a linha voltou ao que estava.');
+        T.redesenhar();
+      }
+    });
+
     // Correção manual de categoria (e aprendizado da regra).
-    $('#lanc-tabela').addEventListener('change', (e) => {
+    tabela.addEventListener('change', (e) => {
       const seletor = e.target.closest('select[data-id]');
       if (!seletor) return;
       const id = Number(seletor.dataset.id);
@@ -233,32 +338,41 @@
   }
 
   function desenharTabela() {
+    if (editando) return;
     const L = T.state.lancamentos;
     const caixa = $('#lanc-tabela');
-    if (!L.length) {
-      caixa.innerHTML =
-        '<p class="vazio com-padding-x">Nenhum lançamento ainda. Cole sua fatura ao lado e clique em <strong>Analisar fatura</strong>, ou use <strong>Carregar exemplo</strong>.</p>';
-      return;
-    }
     const opcoes = (atual) =>
       T.categorias
         .map((c) => '<option value="' + T.esc(c.nome) + '"' + (c.nome === atual ? ' selected' : '') + '>' + T.esc(c.nome) + '</option>')
         .join('');
+
+    const nova =
+      '<div class="linha nova" role="row">' +
+      '<span role="cell"><input type="date" id="novo-data" aria-label="Data do novo lançamento" value="' + T.esc(rascunho.iso) + '"></span>' +
+      '<span role="cell"><input type="text" id="novo-desc" aria-label="Estabelecimento" placeholder="Estabelecimento, ex.: Zara, iFood" autocomplete="off" value="' + T.esc(rascunho.desc) + '"></span>' +
+      '<span role="cell" class="cat nota">categoria automática</span>' +
+      '<span role="cell"><input type="text" id="novo-valor" class="direita" inputmode="decimal" aria-label="Valor" placeholder="0,00" autocomplete="off" value="' + T.esc(rascunho.valor) + '"></span>' +
+      '<span role="cell"><button type="button" class="botao primario pequeno" id="novo-add">Adicionar</button></span>' +
+      '</div>';
+
     const linhas = L.map(
       (l) =>
         '<div class="linha' + (l.categoria === 'Outros' ? ' revisar' : '') + '" role="row">' +
-        '<span role="cell" class="data">' + T.esc(l.data) + '</span>' +
-        '<span role="cell" class="desc" title="' + T.esc(l.desc) + '">' + T.esc(l.desc) + '</span>' +
+        '<span role="cell"><input type="date" data-campo="data" data-id="' + l.id + '" aria-label="Data" value="' + T.esc(paraISO(l)) + '"></span>' +
+        '<span role="cell"><input type="text" data-campo="desc" data-id="' + l.id + '" aria-label="Estabelecimento" value="' + T.esc(l.desc) + '"></span>' +
         '<span role="cell" class="cat"><i class="dot" style="background:' + T.corDa(l.categoria) + '"></i>' +
         '<select data-id="' + l.id + '" aria-label="Categoria de ' + T.esc(l.desc) + '">' + opcoes(l.categoria) + '</select></span>' +
-        '<span role="cell" class="valor-celula">' + T.brl(l.valor) + '</span>' +
+        '<span role="cell"><input type="text" class="direita" data-campo="valor" data-id="' + l.id + '" inputmode="decimal" aria-label="Valor" value="' + T.dec(l.valor) + '"></span>' +
+        '<span role="cell"><button type="button" class="botao pequeno perigo" data-remover="' + l.id + '" aria-label="Remover ' + T.esc(l.desc) + '">Remover</button></span>' +
         '</div>'
     ).join('');
+
     caixa.innerHTML =
-      '<div class="tabela-rolagem"><div class="tabela" role="table" aria-label="Lançamentos da fatura">' +
+      '<div class="tabela-rolagem"><div class="tabela edita" role="table" aria-label="Lançamentos da fatura">' +
       '<div class="linha cabecalho" role="row"><span role="columnheader">Data</span><span role="columnheader">Estabelecimento</span>' +
-      '<span role="columnheader">Categoria</span><span role="columnheader" class="direita">Valor</span></div>' +
-      linhas +
+      '<span role="columnheader">Categoria</span><span role="columnheader" class="direita">Valor</span><span role="columnheader"></span></div>' +
+      nova + linhas +
+      (L.length ? '' : '<p class="vazio com-padding-x">Nenhum lançamento ainda. Preencha a linha acima ou use <strong>Carregar exemplo</strong>.</p>') +
       '</div></div>';
   }
 
