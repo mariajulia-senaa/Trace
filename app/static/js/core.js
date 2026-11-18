@@ -1,13 +1,15 @@
-/* Trace · núcleo: estado, formatação, resumo da fatura e abas.
+/* Trace · núcleo: conversa com o servidor (API), formatação, resumo e abas.
  *
- * Todos os outros arquivos (fatura.js, painel.js, porquinhos.js e
- * investimentos.js) usam o objeto global "Trace" criado aqui.
+ * Nível 2: os dados não ficam mais no navegador. Eles moram nos Models
+ * Python (Lancamento, Porquinho, Preferencias, Fatura) e chegam aqui pela
+ * API JSON do Bottle. Os outros arquivos (fatura.js, painel.js,
+ * porquinhos.js e investimentos.js) usam o objeto global "Trace".
  */
 (function () {
   'use strict';
 
   const Trace = (window.Trace = {});
-  const CHAVE = 'trace:v1';
+  const CHAVE_INVEST = 'trace:invest';
 
   // ---------- atalhos de DOM ----------
   Trace.$ = (seletor, raiz) => (raiz || document).querySelector(seletor);
@@ -15,7 +17,7 @@
 
   // ---------- formatação ----------
   const moeda = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
-  Trace.brl = (v) => moeda.format(v).replace(/ /g, ' ');
+  Trace.brl = (v) => moeda.format(v).replace(/ /g, ' ');
   Trace.dec = (v, casas) => {
     const c = casas === undefined ? 2 : casas;
     return v.toLocaleString('pt-BR', { minimumFractionDigits: c, maximumFractionDigits: c });
@@ -43,56 +45,149 @@
     return c ? c.cor : '#7A8A84';
   };
 
-  // ---------- estado ----------
-  function padrao() {
-    return {
-      limite: 1500,
-      texto: '',
-      lancamentos: [],   // { id, data, desc, valor, categoria }
-      regras: {},        // aprendizado: chave do estabelecimento -> categoria
-      limites: {},       // limite por categoria (editado pela pessoa)
-      porquinhos: [],    // { id, nome, tipo, meta, base, aporte, cor }
-      invest: { inicial: 2000, aporte: 300, prazo: 12, cdi: 12, poup: 0.5, cdb: 100 }
-    };
-  }
-
-  function carregar() {
-    const base = padrao();
+  // ---------- simulação de investimentos (só esta fica no navegador) ----------
+  function investPadrao() {
+    const base = { inicial: 2000, aporte: 300, prazo: 12, cdi: 12, poup: 0.5, cdb: 100 };
     try {
-      const salvo = JSON.parse(localStorage.getItem(CHAVE) || 'null');
-      if (salvo && typeof salvo === 'object') {
-        if (typeof salvo.limite === 'number' && salvo.limite > 0) base.limite = salvo.limite;
-        if (typeof salvo.texto === 'string') base.texto = salvo.texto;
-        if (Array.isArray(salvo.lancamentos)) base.lancamentos = salvo.lancamentos;
-        if (salvo.regras && typeof salvo.regras === 'object') base.regras = salvo.regras;
-        if (salvo.limites && typeof salvo.limites === 'object') base.limites = salvo.limites;
-        if (Array.isArray(salvo.porquinhos)) base.porquinhos = salvo.porquinhos;
-        if (salvo.invest && typeof salvo.invest === 'object') Object.assign(base.invest, salvo.invest);
-      }
+      const salvo = JSON.parse(localStorage.getItem(CHAVE_INVEST) || 'null');
+      if (salvo && typeof salvo === 'object') Object.assign(base, salvo);
     } catch (e) {
-      /* sem localStorage (ou dado corrompido): segue só em memória */
+      /* sem localStorage: segue com os valores padrão */
     }
     return base;
   }
-
-  Trace.state = carregar();
-  Trace.padrao = padrao;
-
   Trace.salvar = function () {
     try {
-      localStorage.setItem(CHAVE, JSON.stringify(Trace.state));
+      localStorage.setItem(CHAVE_INVEST, JSON.stringify(Trace.state.invest));
     } catch (e) {
       /* ignora */
     }
   };
 
-  Trace.apagarTudo = function () {
-    try {
-      localStorage.removeItem(CHAVE);
-    } catch (e) {
-      /* ignora */
+  // ---------- estado vindo do servidor ----------
+  const ddmm = (iso) => iso.slice(8, 10) + '/' + iso.slice(5, 7);
+
+  function aplicar(e) {
+    const f = e.fatura;
+    const anterior = Trace.state || {};
+    Trace.state = {
+      mes: f.mes,
+      nomeMes: f.nome,
+      situacao: f.situacao,
+      mesAtual: e.mes_atual,
+      hoje: e.hoje,
+      meses: e.meses,
+      limite: e.preferencias.limite,
+      limites: e.preferencias.limites || {},
+      lancamentos: f.itens.map((l) => ({
+        id: l.id,
+        origemId: l.origem_id,
+        iso: l.data,
+        data: ddmm(l.data),
+        ano: Number(l.data.slice(0, 4)),
+        desc: l.descricao,
+        valor: l.valor,
+        categoria: l.categoria,
+        parcela: l.parcela,
+        total: l.total_parcelas,
+        automatica: l.automatica,
+        origem: l.origem
+      })),
+      servidor: f.resumo,
+      parcelamentos: f.parcelamentos,
+      proximos: f.proximos,
+      mesPorquinhos: e.mes_dos_porquinhos,
+      porquinhos: e.porquinhos.map((p) => Object.assign({}, p, { base: p.guardado })),
+      invest: anterior.invest || investPadrao()
+    };
+  }
+
+  // Chamada à API: devolve o JSON ou lança um erro com a mensagem do servidor.
+  Trace.api = async function (metodo, url, corpo) {
+    const opcoes = { method: metodo, headers: { Accept: 'application/json' } };
+    if (corpo !== undefined) {
+      opcoes.headers['Content-Type'] = 'application/json';
+      opcoes.body = JSON.stringify(corpo);
     }
-    Trace.state = padrao();
+    let resposta;
+    try {
+      resposta = await fetch(url, opcoes);
+    } catch (e) {
+      throw new Error('Sem conexão com o servidor do Trace.');
+    }
+    let dados = {};
+    try {
+      dados = await resposta.json();
+    } catch (e) {
+      /* resposta sem JSON */
+    }
+    if (!resposta.ok) {
+      const erro = new Error(dados.erro || 'O servidor respondeu com erro ' + resposta.status + '.');
+      erro.status = resposta.status;
+      throw erro;
+    }
+    return dados;
+  };
+
+  // Busca de novo o estado do mês e redesenha tudo.
+  Trace.recarregar = async function (mes) {
+    const alvo = mes || (Trace.state && Trace.state.mes) || '';
+    const e = await Trace.api('GET', '/api/estado?mes=' + encodeURIComponent(alvo));
+    aplicar(e);
+    Trace.redesenhar();
+  };
+
+  // Executa uma ação no servidor e, se der certo, recarrega a tela.
+  Trace.executar = async function (acao) {
+    try {
+      const resultado = await acao();
+      await Trace.recarregar();
+      return resultado;
+    } catch (e) {
+      Trace.avisar(e.message, 'erro');
+      return null;
+    }
+  };
+
+  Trace.irParaMes = async function (mes) {
+    try {
+      await Trace.recarregar(mes);
+      const url = new URL(location.href);
+      url.searchParams.set('mes', mes);
+      history.replaceState(null, '', url.pathname + url.search + location.hash);
+    } catch (e) {
+      Trace.avisar(e.message, 'erro');
+    }
+  };
+
+  // ---------- avisos rápidos (toast) ----------
+  let temporizador = null;
+  Trace.avisar = function (texto, tipo) {
+    const el = document.getElementById('toast');
+    if (!el) return;
+    el.textContent = texto;
+    el.className = 'toast visivel' + (tipo ? ' ' + tipo : '');
+    clearTimeout(temporizador);
+    temporizador = setTimeout(() => (el.className = 'toast'), 3800);
+  };
+
+  // Botão que pede um segundo clique para confirmar (sem janelas de alerta).
+  Trace.confirmarDuasVezes = function (botao, textoConfirmar, acao) {
+    if (botao.dataset.confirmando === '1') {
+      botao.dataset.confirmando = '';
+      botao.textContent = botao.dataset.textoOriginal;
+      acao();
+      return;
+    }
+    botao.dataset.textoOriginal = botao.textContent;
+    botao.dataset.confirmando = '1';
+    botao.textContent = textoConfirmar;
+    setTimeout(() => {
+      if (botao.dataset.confirmando === '1') {
+        botao.dataset.confirmando = '';
+        botao.textContent = botao.dataset.textoOriginal;
+      }
+    }, 4000);
   };
 
   // ---------- avisos entre os módulos ----------
@@ -101,16 +196,8 @@
   Trace.aoIniciar = (fn) => iniciadores.push(fn);
   Trace.aoMudar = (fn) => ouvintes.push(fn);
   Trace.redesenhar = () => ouvintes.forEach((fn) => fn());
-  Trace.atualizar = function () {
-    Trace.salvar();
-    Trace.redesenhar();
-  };
-  Trace.alterar = function (mutacao) {
-    mutacao(Trace.state);
-    Trace.atualizar();
-  };
 
-  // ---------- resumo da fatura (usado por várias abas) ----------
+  // ---------- resumo da fatura do mês escolhido ----------
   Trace.faixa = (pct) => (pct <= 70 ? 'ok' : pct <= 100 ? 'atencao' : 'estouro');
   Trace.rotuloFaixa = { ok: 'Tranquilo', atencao: 'Atenção', estouro: 'Estourou' };
 
@@ -133,6 +220,7 @@
       faixa: Trace.faixa(pct),
       sobra: Math.max(0, Trace.round2(limite - gasto)),
       estouro: Math.max(0, Trace.round2(gasto - limite)),
+      parcelas: s.servidor.comprometido_parcelas,
       porCategoria,
       maior,
       quantidade: L.length
@@ -145,6 +233,41 @@
     const c = Trace.categorias.find((x) => x.nome === nome);
     return c ? c.limite : 0;
   };
+
+  // ---------- seletor de mês (aparece na Fatura e no Painel) ----------
+  const COR_SITUACAO = { 'mês atual': 'ok', 'próximo mês': 'atencao', futuro: 'atencao', 'mês passado': 'neutro' };
+
+  function desenharSeletores() {
+    const s = Trace.state;
+    const indice = s.meses.findIndex((m) => m.mes === s.mes);
+    Trace.$$('[data-seletor-mes]').forEach((caixa) => {
+      const select = caixa.querySelector('select');
+      if (document.activeElement !== select) {
+        select.innerHTML = s.meses
+          .map((m) => '<option value="' + m.mes + '"' + (m.mes === s.mes ? ' selected' : '') + '>' + Trace.esc(m.nome) + '</option>')
+          .join('');
+      }
+      caixa.querySelector('[data-mes-anterior]').disabled = indice <= 0;
+      caixa.querySelector('[data-mes-seguinte]').disabled = indice >= s.meses.length - 1;
+      const chip = caixa.querySelector('.chip-mes');
+      chip.textContent = s.situacao;
+      chip.className = 'chip-mes ' + (COR_SITUACAO[s.situacao] || 'neutro');
+    });
+  }
+
+  function iniciarSeletores() {
+    Trace.$$('[data-seletor-mes]').forEach((caixa) => {
+      caixa.querySelector('select').addEventListener('change', (e) => Trace.irParaMes(e.target.value));
+      const pular = (passo) => {
+        const s = Trace.state;
+        const i = s.meses.findIndex((m) => m.mes === s.mes) + passo;
+        if (i >= 0 && i < s.meses.length) Trace.irParaMes(s.meses[i].mes);
+      };
+      caixa.querySelector('[data-mes-anterior]').addEventListener('click', () => pular(-1));
+      caixa.querySelector('[data-mes-seguinte]').addEventListener('click', () => pular(1));
+    });
+  }
+  Trace.aoMudar(desenharSeletores);
 
   // ---------- abas ----------
   function abrirAba(nome, gravarHash) {
@@ -161,7 +284,7 @@
     });
     if (gravarHash !== false) {
       try {
-        history.replaceState(null, '', '#' + nome);
+        history.replaceState(null, '', location.pathname + location.search + '#' + nome);
       } catch (e) {
         /* ignora */
       }
@@ -186,8 +309,12 @@
   }
 
   // ---------- partida ----------
+  // O primeiro estado já vem dentro da página (renderizada pelo Bottle).
+  aplicar(JSON.parse(document.getElementById('estado-data').textContent));
+
   document.addEventListener('DOMContentLoaded', function () {
     iniciarAbas();
+    iniciarSeletores();
     iniciadores.forEach((fn) => fn());
     Trace.redesenhar();
   });

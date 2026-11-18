@@ -24,7 +24,7 @@
     const datas = L.map((l) => diaDoAno(l.data));
     const primeira = L.find((l) => diaDoAno(l.data) === Math.min.apply(null, datas));
     const ultima = L.find((l) => diaDoAno(l.data) === Math.max.apply(null, datas));
-    $('#p-periodo').textContent = 'O resumo da fatura de ' + primeira.data + ' a ' + ultima.data + ', em um só lugar.';
+    $('#p-periodo').textContent = 'O resumo de ' + T.state.nomeMes + ' (de ' + primeira.data + ' a ' + ultima.data + '), em um só lugar.';
 
     $('#p-gasto').textContent = T.brl(R.gasto);
     const sub = $('#p-gasto-sub');
@@ -37,7 +37,8 @@
     $('#p-maior-sub').textContent = R.maior.desc;
     $('#p-qtd').textContent = String(R.quantidade);
     const nCats = T.categorias.filter((c) => R.porCategoria[c.nome] > 0).length;
-    $('#p-qtd-sub').textContent = 'em ' + nCats + (nCats === 1 ? ' categoria' : ' categorias');
+    $('#p-qtd-sub').textContent = 'em ' + nCats + (nCats === 1 ? ' categoria' : ' categorias') +
+      (R.parcelas ? ' · ' + T.brl(R.parcelas) + ' em parcelas' : '');
   }
 
   // ---------- pizza ----------
@@ -194,7 +195,8 @@
     $('#painel-vazio').hidden = !vazio;
     $('#painel-conteudo').hidden = vazio;
     if (vazio) {
-      $('#p-periodo').textContent = 'O resumo da sua fatura, em um só lugar.';
+      $('#p-periodo').textContent = 'O resumo de ' + T.state.nomeMes + ', em um só lugar.';
+      $('#painel-vazio-mes').textContent = T.state.nomeMes;
       return;
     }
     desenharCards(R);
@@ -211,9 +213,14 @@
       const campo = e.target.closest('input.lim');
       if (!campo) return;
       const v = T.num(campo.value);
-      T.alterar((s) => {
-        if (v >= 0) s.limites[campo.dataset.cat] = T.round2(v);
-      });
+      if (!(v >= 0)) {
+        T.avisar('Limite inválido.', 'erro');
+        T.redesenhar();
+        return;
+      }
+      const limites = {};
+      limites[campo.dataset.cat] = T.round2(v);
+      T.executar(() => T.api('PUT', '/api/preferencias', { limites }));
     });
   }
 

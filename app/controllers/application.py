@@ -1,30 +1,35 @@
-from app.models.categoria import Categoria
-from bottle import template
 import json
+
+from bottle import template
+
+from app.controllers.financas import Financas
+from app.models.categoria import Categoria
+
+
+def para_script(dados):
+    """JSON seguro para colocar dentro de uma tag <script> da view."""
+    return json.dumps(dados, ensure_ascii=False).replace('</', '<\\/')
 
 
 class Application():
 
     def __init__(self):
+        self.financas = Financas()
         self.pages = {
-            'trace': self.trace,
-            'helper': self.helper
+            'trace': self.trace
         }
 
 
-    def render(self,page):
-       content = self.pages.get(page, self.helper)
-       return content()
+    def render(self, page, **parametros):
+        content = self.pages.get(page, self.trace)
+        return content(**parametros)
 
 
-    def helper(self):
-        return template('app/views/html/helper')
-
-
-    def trace(self):
-        # O Model (Categoria) entrega as categorias e palavras-chave para a view.
+    def trace(self, mes=None):
+        # A view recebe as categorias (Model Categoria) e o estado do mês já
+        # montado pelos Models (Fatura, Lancamento, Porquinho, Preferencias).
         categorias = Categoria.padrao()
-        dados = json.dumps([c.to_dict() for c in categorias], ensure_ascii=False)
-        dados = dados.replace('</', '<\\/')   # evita fechar a tag <script> por engano
-        return template('app/views/html/trace', categorias=categorias,
-                        categorias_json=dados)
+        return template('app/views/html/trace',
+                        categorias=categorias,
+                        categorias_json=para_script([c.to_dict() for c in categorias]),
+                        estado_json=para_script(self.financas.estado(mes)))

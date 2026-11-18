@@ -1,3 +1,19 @@
+import re
+import unicodedata
+
+
+def normalizar(texto):
+    """Maiúsculas e sem acentos: 'Farmácia' -> 'FARMACIA'."""
+    sem_acento = unicodedata.normalize('NFD', texto)
+    sem_acento = ''.join(c for c in sem_acento if unicodedata.category(c) != 'Mn')
+    return sem_acento.upper()
+
+
+def palavras(texto):
+    """Quebra a descrição em palavras simples (só letras e números)."""
+    return [p for p in re.sub(r'[^A-Z0-9 ]+', ' ', normalizar(texto)).split() if p]
+
+
 class Categoria():
     """Model: uma categoria de gasto da fatura.
 
@@ -12,6 +28,20 @@ class Categoria():
         self.limite = limite
 
 
+    def reconhece(self, descricao):
+        """True se alguma palavra-chave aparece na descrição."""
+        lista = palavras(descricao)
+        texto = ' ' + ' '.join(lista) + ' '
+        for chave in self.palavras_chave:
+            p = normalizar(chave)
+            if ' ' in p:
+                if ' ' + p + ' ' in texto:
+                    return True
+            elif any(t == p or (len(p) >= 4 and t.startswith(p)) for t in lista):
+                return True
+        return False
+
+
     def to_dict(self):
         return {
             'nome': self.nome,
@@ -19,6 +49,39 @@ class Categoria():
             'palavras_chave': self.palavras_chave,
             'limite': self.limite
         }
+
+
+    # ------------------------------------------------------------------
+    @staticmethod
+    def chave_do_estabelecimento(descricao):
+        """As duas primeiras palavras só de letras: usada para aprender regras.
+        'IFOOD *LANCHES' e 'IFOOD *RESTAURANTE' -> 'IFOOD LANCHES' / 'IFOOD RESTAURANTE';
+        'UBER *TRIP' em qualquer dia -> 'UBER TRIP'."""
+        so_letras = [p for p in palavras(descricao) if re.fullmatch(r'[A-Z]{2,}', p)]
+        return ' '.join(so_letras[:2])
+
+
+    @staticmethod
+    def classificar(descricao, regras=None, categorias=None):
+        """Escolhe a categoria de uma descrição.
+
+        1. Se a pessoa já corrigiu um estabelecimento parecido, vale a regra dela.
+        2. Senão, a primeira categoria cuja palavra-chave aparece.
+        3. Senão, 'Outros'.
+        """
+        regras = regras or {}
+        chave = Categoria.chave_do_estabelecimento(descricao)
+        if chave and chave in regras:
+            return regras[chave]
+        for categoria in (categorias or Categoria.padrao()):
+            if categoria.reconhece(descricao):
+                return categoria.nome
+        return 'Outros'
+
+
+    @staticmethod
+    def nomes():
+        return [c.nome for c in Categoria.padrao()]
 
 
     @staticmethod

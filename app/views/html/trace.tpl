@@ -23,8 +23,8 @@
         <button type="button" class="aba" role="tab" id="aba-investimentos" data-tab="investimentos" aria-controls="investimentos" aria-selected="false">Investimentos</button>
     </nav>
     <span class="privacidade">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>
-        Seus dados ficam só neste navegador
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="7" rx="2"/><rect x="3" y="13" width="18" height="7" rx="2"/><path d="M7 7.5h.01M7 16.5h.01"/></svg>
+        Dados salvos no servidor (Nível 2)
     </span>
 </header>
 
@@ -32,24 +32,40 @@
 
     <!-- ============================== 1. FATURA ============================== -->
     <section id="fatura" class="painel-aba" role="tabpanel" aria-labelledby="aba-fatura">
-        <div class="titulo-pagina">
-            <h1>Fatura</h1>
-            <p>Defina seu limite, preencha a fatura e veja pra onde o dinheiro foi.</p>
+        <div class="titulo-pagina com-seletor">
+            <div>
+                <h1>Fatura</h1>
+                <p>Escolha o mês, preencha a fatura e acompanhe suas parcelas.</p>
+            </div>
+            <div class="seletor-mes" data-seletor-mes role="group" aria-label="Mês da fatura">
+                <button type="button" class="botao-icone" data-mes-anterior aria-label="Mês anterior"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg></button>
+                <label class="caixa-mes">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/></svg>
+                    <select aria-label="Escolher o mês"></select>
+                </label>
+                <button type="button" class="botao-icone" data-mes-seguinte aria-label="Próximo mês"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18l6-6-6-6"/></svg></button>
+                <span class="chip-mes ok"></span>
+            </div>
         </div>
 
-        <div class="linha-cards">
+        <div class="linha-cards quatro">
             <div class="card">
-                <label for="limite" class="rotulo">Limite da fatura</label>
+                <label for="limite" class="rotulo">Limite do mês</label>
                 <div class="campo-moeda destaque">
                     <span>R$</span>
                     <input id="limite" type="text" inputmode="decimal" value="1.500,00" autocomplete="off">
                 </div>
-                <span class="nota">Quanto você quer gastar, no máximo, nesta fatura.</span>
+                <span class="nota">Vale para todos os meses.</span>
             </div>
             <div class="card">
-                <span class="rotulo">Total gasto</span>
+                <span class="rotulo">Total do mês</span>
                 <span class="valor" id="f-gasto">R$ 0,00</span>
-                <span class="nota" id="f-gasto-sub">Nenhum lançamento lido ainda.</span>
+                <span class="nota" id="f-gasto-sub">Nenhum lançamento neste mês.</span>
+            </div>
+            <div class="card">
+                <span class="rotulo">Já comprometido com parcelas</span>
+                <span class="valor atencao" id="f-parc">R$ 0,00</span>
+                <span class="nota" id="f-parc-sub">Parcelas que caem neste mês.</span>
             </div>
             <div class="card">
                 <span class="rotulo" id="f-resta-rotulo">Ainda resta</span>
@@ -82,14 +98,14 @@
         <div class="card sem-padding-x">
             <div class="com-padding-x cabeca-lanc">
                 <div>
-                    <h2>Lançamentos da fatura</h2>
-                    <p class="nota">Escolha a data no calendário, digite o estabelecimento e o valor e clique em Adicionar. A categoria é sugerida sozinha.</p>
+                    <h2 id="lanc-titulo">Lançamentos do mês</h2>
+                    <p class="nota">Parcelou? Escolha 2x ou mais e digite o valor de cada parcela, como vem na fatura. As próximas entram sozinhas nos meses seguintes.</p>
                 </div>
                 <div class="botoes">
                     <button type="button" class="botao" id="btn-exemplo">Carregar exemplo</button>
                     <label class="botao pequeno" for="arquivo">Importar CSV ou TXT</label>
                     <input type="file" id="arquivo" accept=".csv,.txt,text/csv,text/plain" hidden>
-                    <button type="button" class="botao pequeno" id="btn-limpar">Limpar fatura</button>
+                    <button type="button" class="botao pequeno" id="btn-limpar">Limpar mês</button>
                 </div>
             </div>
 
@@ -100,7 +116,7 @@
             <details class="como com-padding-x">
                 <summary>Prefere colar a fatura como texto?</summary>
                 <div class="como-lista">
-                    <p class="nota">Uma linha por lançamento: data, estabelecimento e valor. Isso substitui a tabela.</p>
+                    <p class="nota">Uma linha por lançamento: data, estabelecimento e valor. Parcelas como "LOJA XYZ 3/6" são reconhecidas. As linhas são adicionadas à tabela.</p>
                     <textarea id="fatura-texto" aria-label="Texto da fatura" spellcheck="false"
                               placeholder="05/11 UBER *TRIP 23,90&#10;06/11 NETFLIX.COM 55,90&#10;07/11 SUPERMERCADO BOM PRECO 212,35"></textarea>
                     <div class="botoes">
@@ -127,23 +143,52 @@
             </details>
 
             <span class="nota com-icone com-padding-x">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>
-                Nada é enviado: tudo roda no seu navegador.
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="7" rx="2"/><rect x="3" y="13" width="18" height="7" rx="2"/></svg>
+                Os lançamentos ficam no servidor, em app/controllers/db/lancamentos.json.
             </span>
+        </div>
+
+        <div class="duas-colunas">
+            <div class="card" style="flex: 3 1 520px; min-width: 0">
+                <div class="titulo-com-selo espalhado">
+                    <h2>Parcelamentos</h2>
+                    <span class="nota" id="parc-falta"></span>
+                </div>
+                <div id="parc-lista" class="parc-lista"></div>
+            </div>
+            <div class="card" style="flex: 2 1 340px; min-width: 0">
+                <div>
+                    <h2>Próximos meses</h2>
+                    <p class="nota">Quanto do limite já está comprometido só com parcelas.</p>
+                </div>
+                <div id="prox-grafico" class="prox-grafico" role="img" aria-label="Parcelas já comprometidas nos próximos meses"></div>
+                <p class="nota" id="prox-frase"></p>
+            </div>
         </div>
     </section>
 
 
     <!-- ============================== 2. PAINEL ============================== -->
     <section id="painel" class="painel-aba" role="tabpanel" aria-labelledby="aba-painel" hidden>
-        <div class="titulo-pagina">
-            <h1>Painel</h1>
-            <p id="p-periodo">O resumo da sua fatura, em um só lugar.</p>
+        <div class="titulo-pagina com-seletor">
+            <div>
+                <h1>Painel</h1>
+                <p id="p-periodo">O resumo da sua fatura, em um só lugar.</p>
+            </div>
+            <div class="seletor-mes" data-seletor-mes role="group" aria-label="Mês da fatura">
+                <button type="button" class="botao-icone" data-mes-anterior aria-label="Mês anterior"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg></button>
+                <label class="caixa-mes">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/></svg>
+                    <select aria-label="Escolher o mês"></select>
+                </label>
+                <button type="button" class="botao-icone" data-mes-seguinte aria-label="Próximo mês"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18l6-6-6-6"/></svg></button>
+                <span class="chip-mes ok"></span>
+            </div>
         </div>
 
         <div id="painel-vazio" class="card vazio-grande">
-            <h2>Ainda não há dados para mostrar</h2>
-            <p>Vá até a aba <strong>Fatura</strong> e clique em <strong>Carregar exemplo</strong> (ou cole a sua fatura) para gerar o painel.</p>
+            <h2>Nenhum lançamento em <span id="painel-vazio-mes">este mês</span></h2>
+            <p>Escolha outro mês acima, ou vá até a aba <strong>Fatura</strong> e clique em <strong>Carregar exemplo</strong>.</p>
         </div>
 
         <div id="painel-conteudo">
@@ -223,7 +268,7 @@
     <section id="porquinhos" class="painel-aba" role="tabpanel" aria-labelledby="aba-porquinhos" hidden>
         <div class="titulo-pagina">
             <h1>Porquinhos</h1>
-            <p>Reparta a sobra da fatura entre as suas metas e veja quando cada uma chega lá.</p>
+            <p id="pq-sub">Reparta a sobra do mês entre as suas metas e veja quando cada uma chega lá.</p>
         </div>
 
         <div class="card">
@@ -387,11 +432,14 @@
 </main>
 
 <footer class="rodape">
-    <span>Trace · projeto de Orientação a Objetos (BMVC, Nível 1)</span>
-    <button type="button" class="link" id="btn-apagar">Apagar todos os dados deste navegador</button>
+    <span>Trace · projeto de Orientação a Objetos (BMVC, Nível 2)</span>
+    <button type="button" class="link" id="btn-apagar">Apagar todos os dados</button>
 </footer>
 
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+
 <script id="categorias-data" type="application/json">{{!categorias_json}}</script>
+<script id="estado-data" type="application/json">{{!estado_json}}</script>
 <script src="/static/js/core.js"></script>
 <script src="/static/js/fatura.js"></script>
 <script src="/static/js/painel.js"></script>

@@ -1,1 +1,6 @@
 __pycache__/
+
+# dados gravados pelo Trace (cada máquina tem os seus)
+app/controllers/db/*.json
+app/controllers/db/*.lock
+app/controllers/db/*.tmp

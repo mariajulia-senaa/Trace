@@ -1,4 +1,5 @@
-/* Trace · aba Investimentos: compara dinheiro parado, poupança e CDB. */
+/* Trace · aba Investimentos: compara dinheiro parado, poupança e CDB.
+ * Os números vêm da API (/api/investimentos), calculados pelos Models Python. */
 (function () {
   'use strict';
 
@@ -7,53 +8,22 @@
 
   const CAMPOS = ['inicial', 'aporte', 'prazo', 'cdi', 'poup', 'cdb'];
 
-  // IR regressivo da renda fixa (prazo em dias).
-  function aliquotaIR(dias) {
-    if (dias <= 180) return 0.225;
-    if (dias <= 360) return 0.2;
-    if (dias <= 720) return 0.175;
-    return 0.15;
-  }
-
-  // Aportes no fim de cada mês; a poupança rende "poup"% ao mês e o CDB rende
-  // "cdb"% do CDI (convertido de ano para mês).
-  function simular(p) {
-    const n = p.prazo;
-    const iPoup = p.poup / 100;
-    const iCdb = Math.pow(1 + (p.cdi / 100) * (p.cdb / 100), 1 / 12) - 1;
-
-    const serie = { parado: [p.inicial], poup: [p.inicial], cdb: [p.inicial] };
-    let sp = p.inicial;
-    let sc = p.inicial;
-    for (let m = 1; m <= n; m++) {
-      sp = sp * (1 + iPoup) + p.aporte;
-      sc = sc * (1 + iCdb) + p.aporte;
-      serie.parado.push(p.inicial + p.aporte * m);
-      serie.poup.push(sp);
-      serie.cdb.push(sc);
-    }
-
-    // IR do CDB: cada aporte tem a sua idade (meses * 30 dias).
-    let ir = 0;
-    for (let k = 0; k <= n; k++) {
-      const valor = k === 0 ? p.inicial : p.aporte;
-      const idade = n - k;
-      ir += valor * (Math.pow(1 + iCdb, idade) - 1) * aliquotaIR(idade * 30);
-    }
-
-    const investido = p.inicial + p.aporte * n;
+  // Nível 2: o cálculo saiu daqui. Quem calcula são os Models Python
+  // (Investimento -> DinheiroParado, Poupanca, CDB); esta tela só desenha.
+  function converter(d) {
+    const o = d.opcoes;
     return {
-      n,
-      serie,
-      investido,
-      parado: investido,
-      poup: sp,
-      poupRendimento: sp - investido,
-      cdbBruto: sc,
-      cdbRendimento: sc - investido,
-      ir,
-      cdbLiquido: sc - ir,
-      cdbGanhoLiquido: sc - ir - investido
+      n: d.prazo,
+      serie: { parado: o.parado.evolucao, poup: o.poupanca.evolucao, cdb: o.cdb.evolucao },
+      investido: d.investido,
+      parado: o.parado.saldo_liquido,
+      poup: o.poupanca.saldo_liquido,
+      poupRendimento: o.poupanca.rendimento_bruto,
+      cdbBruto: o.cdb.saldo_bruto,
+      cdbRendimento: o.cdb.rendimento_bruto,
+      ir: o.cdb.imposto,
+      cdbLiquido: o.cdb.saldo_liquido,
+      cdbGanhoLiquido: o.cdb.ganho_liquido
     };
   }
 
@@ -142,6 +112,9 @@
       '</div></div>';
   }
 
+  let pedido = 0;           // descarta respostas antigas se a pessoa digitar rápido
+  let temporizador = null;
+
   function desenhar() {
     const erro = $('#inv-erro');
     const v = ler();
@@ -153,8 +126,24 @@
     erro.hidden = true;
     T.state.invest = v;
     T.salvar();
+    clearTimeout(temporizador);
+    temporizador = setTimeout(() => calcular(v), 150);
+  }
 
-    const r = simular(v);
+  async function calcular(v) {
+    const meu = ++pedido;
+    let d;
+    try {
+      d = await T.api('POST', '/api/investimentos', v);
+    } catch (e) {
+      if (meu === pedido) {
+        $('#inv-erro').textContent = e.message;
+        $('#inv-erro').hidden = false;
+      }
+      return;
+    }
+    if (meu !== pedido) return;
+    const r = converter(d);
     $('#r-parado').textContent = T.brl(r.parado);
     $('#r-poup').textContent = T.brl(r.poup);
     $('#r-poup-sub').textContent = '+ ' + T.brl(r.poupRendimento) + ' · isenta de IR';
@@ -192,5 +181,4 @@
   }
 
   T.aoIniciar(iniciar);
-  T.simularInvestimento = simular; // exposto para testes
 })();
