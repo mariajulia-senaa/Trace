@@ -95,7 +95,7 @@
     const lista = $('#pq-lista');
     if (!T.state.porquinhos.length) {
       lista.innerHTML =
-        '<div class="card vazio-grande"><h2>Você ainda não tem porquinhos</h2><p>Crie o primeiro abaixo, ou use <strong>Carregar exemplo</strong> na aba Fatura para ver três prontos.</p></div>';
+        '<div class="card vazio-grande">' + (T.capiVazia ? T.capiVazia('porquinho') : '') + '<h2>Você ainda não tem porquinhos</h2><p>Crie o primeiro abaixo, ou use <strong>Carregar exemplo</strong> na aba Fatura para ver três prontos.</p></div>';
       return;
     }
     lista.innerHTML = T.state.porquinhos

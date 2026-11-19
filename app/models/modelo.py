@@ -54,3 +54,31 @@ class Modelo(ABC):
 
     def __hash__(self):
         return hash((type(self).__name__, self._id))
+
+
+class ModeloDoUsuario(Modelo):
+    """Nível 3: um Model que pertence a uma pessoa (herda de Modelo).
+
+    Lancamento, Porquinho e Preferencias herdam daqui e ganham o dono
+    (usuario_id) sem repetir código: HERANÇA em dois níveis
+    (Modelo -> ModeloDoUsuario -> Lancamento -> LancamentoParcelado).
+    """
+
+    def __init__(self, id=None, usuario_id=None):
+        super().__init__(id)
+        self.usuario_id = usuario_id
+
+    @property
+    def usuario_id(self):
+        return self._usuario_id
+
+    @usuario_id.setter
+    def usuario_id(self, novo):
+        if novo is not None and (not isinstance(novo, int) or novo < 1):
+            raise ValueError('O dono precisa ser o id de um usuário.')
+        self._usuario_id = novo
+
+    def com_dono(self, dados):
+        """Acrescenta o dono ao dicionário que vai para o JSON."""
+        dados['usuario_id'] = self._usuario_id
+        return dados

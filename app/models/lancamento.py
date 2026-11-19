@@ -5,7 +5,7 @@ from datetime import date
 
 from app.models.categoria import Categoria
 from app.models.erros import ErroDeValidacao
-from app.models.modelo import Modelo
+from app.models.modelo import ModeloDoUsuario
 
 
 MESES = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho',
@@ -47,10 +47,10 @@ def mes_valido(texto):
 
 
 # ---------------------------------------------------------------- model
-class Lancamento(Modelo):
+class Lancamento(ModeloDoUsuario):
     """Model ABSTRATO: uma linha da fatura.
 
-    Herda de Modelo e tem duas classes filhas:
+    Herda de ModeloDoUsuario (que herda de Modelo) e tem duas classes filhas:
       - LancamentoAVista:   a compra cai inteira em um mês só;
       - LancamentoParcelado: a compra se repete nos meses seguintes.
 
@@ -64,8 +64,8 @@ class Lancamento(Modelo):
 
     LIMITE_PARCELAS = 48
 
-    def __init__(self, id, data, descricao, valor, categoria, parcela=1, total_parcelas=1):
-        super().__init__(id)
+    def __init__(self, id, data, descricao, valor, categoria, parcela=1, total_parcelas=1, usuario_id=None):
+        super().__init__(id, usuario_id)
         self.data = data
         self.descricao = descricao
         self.valor = valor
@@ -79,15 +79,15 @@ class Lancamento(Modelo):
 
     # ------------------------------------------------------------ criação polimórfica
     @staticmethod
-    def criar(id, data, descricao, valor, categoria, parcela=1, total_parcelas=1):
+    def criar(id, data, descricao, valor, categoria, parcela=1, total_parcelas=1, usuario_id=None):
         """Fábrica: devolve a classe filha certa para o número de parcelas."""
         classe = LancamentoParcelado if int(total_parcelas) > 1 else LancamentoAVista
-        return classe(id, data, descricao, valor, categoria, parcela, total_parcelas)
+        return classe(id, data, descricao, valor, categoria, parcela, total_parcelas, usuario_id)
 
     @classmethod
     def from_dict(cls, d):
         return Lancamento.criar(d['id'], d['data'], d['descricao'], d['valor'], d['categoria'],
-                                d.get('parcela', 1), d.get('total_parcelas', 1))
+                                d.get('parcela', 1), d.get('total_parcelas', 1), d.get('usuario_id'))
 
 
     # ------------------------------------------------------------ validação (antes de criar)
@@ -226,7 +226,7 @@ class Lancamento(Modelo):
 
     # ------------------------------------------------------------ dados
     def to_dict(self):
-        return {
+        return self.com_dono({
             'id': self.id,
             'data': self._data,
             'descricao': self._descricao,
@@ -234,10 +234,11 @@ class Lancamento(Modelo):
             'categoria': self._categoria,
             'parcela': self._parcela,
             'total_parcelas': self._total_parcelas
-        }
+        })
 
     def para_tela(self):
         d = self.to_dict()
+        d.pop('usuario_id')
         d.update(automatica=False, origem=None, origem_id=None)
         return d
 
@@ -248,10 +249,10 @@ class Lancamento(Modelo):
 class LancamentoAVista(Lancamento):
     """Compra paga de uma vez: só existe no próprio mês."""
 
-    def __init__(self, id, data, descricao, valor, categoria, parcela=1, total_parcelas=1):
+    def __init__(self, id, data, descricao, valor, categoria, parcela=1, total_parcelas=1, usuario_id=None):
         if int(parcela) != 1 or int(total_parcelas) != 1:
             raise ErroDeValidacao('Lançamento à vista tem uma parcela só.')
-        super().__init__(id, data, descricao, valor, categoria, 1, 1)
+        super().__init__(id, data, descricao, valor, categoria, 1, 1, usuario_id)
 
     @property
     def parcelado(self):
@@ -283,10 +284,10 @@ class LancamentoParcelado(Lancamento):
     """Compra em várias parcelas. É gravada uma vez só, com a parcela em que
     entrou no Trace (ex.: 3 de 6); as seguintes são calculadas por projetar()."""
 
-    def __init__(self, id, data, descricao, valor, categoria, parcela=1, total_parcelas=2):
+    def __init__(self, id, data, descricao, valor, categoria, parcela=1, total_parcelas=2, usuario_id=None):
         if int(total_parcelas) < 2:
             raise ErroDeValidacao('Parcelado precisa de 2 parcelas ou mais.')
-        super().__init__(id, data, descricao, valor, categoria, parcela, total_parcelas)
+        super().__init__(id, data, descricao, valor, categoria, parcela, total_parcelas, usuario_id)
 
     @property
     def parcelado(self):

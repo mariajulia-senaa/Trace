@@ -1,13 +1,13 @@
 import math
 
 from app.models.erros import ErroDeValidacao
-from app.models.modelo import Modelo
+from app.models.modelo import ModeloDoUsuario
 
 
-class Porquinho(Modelo):
+class Porquinho(ModeloDoUsuario):
     """Model: uma meta de economia (viagem, notebook, reserva...).
 
-    Herda de Modelo. 'guardado' é o que já existia antes; 'aporte' é a parte
+    Herda de ModeloDoUsuario (cada porquinho tem dono). 'guardado' é o que já existia antes; 'aporte' é a parte
     da sobra deste mês que a pessoa decidiu mandar para este porquinho.
     Cada valor só muda pelo setter, que confere se ele faz sentido.
     """
@@ -15,8 +15,8 @@ class Porquinho(Modelo):
     TIPOS = ['Viagem', 'Trabalho', 'Reserva', 'Compra', 'Outro']
     CORES = ['#5B9DFF', '#3DDC97', '#E8A06B', '#B392F0', '#FF8FB1', '#7DD3FC']
 
-    def __init__(self, id, nome, tipo, meta, guardado=0, aporte=0, cor='#5B9DFF'):
-        super().__init__(id)
+    def __init__(self, id, nome, tipo, meta, guardado=0, aporte=0, cor='#5B9DFF', usuario_id=None):
+        super().__init__(id, usuario_id)
         self.nome = nome
         self.tipo = tipo
         self.meta = meta
@@ -139,7 +139,7 @@ class Porquinho(Modelo):
 
     # ------------------------------------------------------------ dados
     def to_dict(self):
-        return {
+        return self.com_dono({
             'id': self.id,
             'nome': self._nome,
             'tipo': self._tipo,
@@ -147,10 +147,11 @@ class Porquinho(Modelo):
             'guardado': self._guardado,
             'aporte': self._aporte,
             'cor': self._cor
-        }
+        })
 
     def para_tela(self):
         d = self.to_dict()
+        d.pop('usuario_id')
         d.update(total=self.total, falta=self.falta, porcentagem=self.porcentagem,
                  meses_para_meta=self.meses_para_meta)
         return d
@@ -158,7 +159,7 @@ class Porquinho(Modelo):
     @classmethod
     def from_dict(cls, d):
         return cls(d['id'], d['nome'], d['tipo'], d['meta'], d.get('guardado', 0),
-                   d.get('aporte', 0), d.get('cor', '#5B9DFF'))
+                   d.get('aporte', 0), d.get('cor', '#5B9DFF'), d.get('usuario_id'))
 
     def descrever(self):
         return '%s: %d%% de R$ %.2f' % (self._nome, self.porcentagem, self._meta)

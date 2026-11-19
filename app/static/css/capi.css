@@ -1,0 +1,103 @@
+/* Trace · Capi, a capivara do Trace: animações da personagem (SVG em _capi.tpl)
+ * e o balão "Dica da Capi" usado dentro do app. Usado por inicio.tpl e trace.tpl.
+ */
+
+/* ------------------------------------------------------------------ Capi: animações */
+.capi .capi-corpo { animation: respirar 4s ease-in-out infinite; transform-origin: 160px 348px; }
+@keyframes respirar { 0%, 100% { transform: scaleY(1); } 50% { transform: scaleY(1.025); } }
+.capi .capi-cabeca { animation: cabeca 6s ease-in-out infinite; transform-origin: 160px 190px; }
+@keyframes cabeca { 0%, 100% { transform: rotate(0); } 30% { transform: rotate(-2.5deg); } 60% { transform: rotate(2deg); } }
+.capi .capi-olhos { animation: piscar 5s infinite; transform-box: fill-box; transform-origin: center; }
+@keyframes piscar { 0%, 93%, 100% { transform: scaleY(1); } 95% { transform: scaleY(.1); } }
+.capi .capi-orelha { transform-box: fill-box; transform-origin: center bottom; }
+.capi .capi-orelha.d { animation: orelha 7s 1s infinite; }
+@keyframes orelha { 0%, 90%, 100% { transform: rotate(0); } 93% { transform: rotate(14deg); } 96% { transform: rotate(-6deg); } }
+.capi .capi-ponta { animation: ponta 3s ease-in-out infinite; transform-origin: 186px 210px; }
+@keyframes ponta { 0%, 100% { transform: rotate(0); } 50% { transform: rotate(6deg); } }
+.capi .capi-aceno { animation: acenar 2.2s ease-in-out infinite; transform-origin: 220px 222px; }
+@keyframes acenar { 0%, 100% { transform: rotate(0); } 15% { transform: rotate(-14deg); } 30% { transform: rotate(6deg); } 45% { transform: rotate(-12deg); } 60% { transform: rotate(0); } }
+.capi .capi-lupa { animation: lupa 3.6s ease-in-out infinite; }
+@keyframes lupa { 0%, 100% { transform: translate(0, 0); } 33% { transform: translate(-16px, 22px); } 66% { transform: translate(-4px, 50px); } }
+.capi .capi-papel { animation: papel 3.6s ease-in-out infinite; transform-origin: 94px 270px; }
+@keyframes papel { 0%, 100% { transform: rotate(0); } 50% { transform: rotate(-3deg); } }
+.capi .capi-marcas rect { transform-box: fill-box; transform-origin: left; animation: marca 3.2s ease-in-out infinite; }
+.capi .capi-marcas rect:nth-child(4) { animation-name: marca-nova; }
+@keyframes marca { 0%, 100% { opacity: 1; } }
+@keyframes marca-nova { 0%, 40% { fill: #C9D3CE; } 55%, 85% { fill: #3DDC97; } 100% { fill: #C9D3CE; } }
+.capi .capi-calendario { animation: segurar 3.2s ease-in-out infinite; }
+@keyframes segurar { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
+.capi .capi-rosca-a, .capi .capi-rosca-b, .capi .capi-rosca-c { animation: rosca 6s linear infinite; transform-box: view-box; transform-origin: 132px 276px; }
+@keyframes rosca { to { transform: rotate(270deg); } }
+.capi .capi-barra { transform-box: fill-box; transform-origin: left; animation: barra 2.8s ease-in-out infinite; }
+.capi .capi-barra.b2 { animation-delay: .3s; } .capi .capi-barra.b3 { animation-delay: .6s; }
+@keyframes barra { 0%, 100% { transform: scaleX(1); } 50% { transform: scaleX(.55); } }
+.capi .capi-tablet { animation: segurar 3.6s ease-in-out infinite; }
+.capi .capi-moeda { animation: cair-moeda 2.4s ease-in infinite; }
+@keyframes cair-moeda { 0% { transform: translateY(-70px); opacity: 0; } 20% { opacity: 1; } 75% { transform: translateY(52px); opacity: 1; } 85%, 100% { transform: translateY(58px); opacity: 0; } }
+.capi .capi-porco { animation: porco 2.4s ease-in-out infinite; transform-origin: 160px 330px; }
+@keyframes porco { 0%, 70%, 100% { transform: scale(1); } 80% { transform: scale(1.05, .96); } 90% { transform: scale(.98, 1.03); } }
+.capi .capi-gotas ellipse { animation: gota 1.2s linear infinite; }
+.capi .capi-gotas ellipse:nth-child(2) { animation-delay: .4s; } .capi .capi-gotas ellipse:nth-child(3) { animation-delay: .8s; }
+@keyframes gota { 0% { transform: translateY(-14px); opacity: 0; } 30% { opacity: 1; } 100% { transform: translateY(20px); opacity: 0; } }
+.capi .capi-moedinhas circle { transform-box: fill-box; transform-origin: center; animation: brotar 3s ease-in-out infinite; }
+.capi .capi-moedinhas circle:nth-child(2) { animation-delay: .5s; } .capi .capi-moedinhas circle:nth-child(3) { animation-delay: 1s; }
+@keyframes brotar { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.18); } }
+.capi .capi-regador { animation: regar 3s ease-in-out infinite; transform-origin: 90px 220px; }
+@keyframes regar { 0%, 100% { transform: rotate(0); } 50% { transform: rotate(-6deg); } }
+
+/* olhos tapados (campo de senha) */
+.capi-olhos-pose .capi-bracos-olhos, .capi.capi-olhos .capi-bracos-olhos { opacity: 0; transform: translateY(70px); transition: opacity .25s, transform .35s cubic-bezier(.3, 1.4, .5, 1); }
+.capi.capi-olhos .capi-bracos-baixo { transition: opacity .2s; }
+.cobrindo .capi.capi-olhos .capi-bracos-olhos { opacity: 1; transform: none; }
+.cobrindo .capi.capi-olhos .capi-bracos-baixo { opacity: 0; }
+.espiando .capi.capi-olhos .capi-pata-d { transform: translate(14px, 26px) rotate(14deg); transition: transform .3s; }
+
+
+/* ------------------------------------------------------------------ Dica da Capi (app) */
+.dica-capi {
+  position: relative; display: flex; align-items: flex-end; gap: 4px;
+  padding: 0 20px 0 8px; min-height: 112px;
+  border-radius: 20px; overflow: hidden;
+  background: linear-gradient(110deg, #12301F 0%, #121917 55%, #1A2320 100%);
+  border: 1px solid #1F4A35;
+}
+.dica-capi-arte { flex-shrink: 0; width: 108px; height: 112px; overflow: hidden; align-self: flex-end; }
+.dica-capi-arte .capi { width: 108px; height: auto; display: block; margin-top: 2px; }
+.dica-balao {
+  position: relative; align-self: center; flex: 1; min-width: 0;
+  margin: 16px 0; padding: 12px 16px; border-radius: 16px;
+  background: var(--fundo); border: 1px solid var(--borda);
+}
+.dica-balao::before {
+  content: ''; position: absolute; left: -8px; top: 50%; width: 14px; height: 14px; margin-top: -7px;
+  background: var(--fundo); border-left: 1px solid var(--borda); border-bottom: 1px solid var(--borda); transform: rotate(45deg);
+}
+.dica-titulo { display: block; font-size: 12px; font-weight: 700; letter-spacing: .5px; text-transform: uppercase; color: var(--destaque); margin-bottom: 2px; }
+.dica-capi, .dica-capi.atencao, .dica-capi.estouro { color: var(--texto); }
+.dica-balao p { margin: 0; line-height: 1.5; font-size: 15px; color: var(--texto); }
+.dica-balao strong { color: var(--texto); }
+.dica-capi.atencao { background: linear-gradient(110deg, #2A2312 0%, #121917 60%); border-color: #4A3C18; }
+.dica-capi.atencao .dica-titulo { color: var(--atencao); }
+.dica-capi.estouro { background: linear-gradient(110deg, #331616 0%, #121917 60%); border-color: #5A2424; }
+.dica-capi.estouro .dica-titulo { color: var(--estouro); }
+
+/* a Capi dá um pulinho quando a dica muda */
+.dica-capi.mudou .dica-capi-arte .capi { animation: pulinho .7s cubic-bezier(.3, 1.6, .5, 1); }
+.dica-capi.mudou .dica-balao { animation: balao .5s ease-out; }
+@keyframes pulinho { 0% { transform: translateY(0); } 35% { transform: translateY(-14px) rotate(-3deg); } 70% { transform: translateY(2px); } 100% { transform: translateY(0); } }
+@keyframes balao { from { opacity: .3; transform: translateX(-6px); } }
+
+/* Capi nas telas vazias do app */
+.vazio-capi { width: 150px; margin: 0 auto 4px; }
+.vazio-capi .capi { width: 100%; height: auto; display: block; }
+
+@media (max-width: 720px) {
+  .dica-capi { padding-right: 12px; min-height: 96px; }
+  .dica-capi-arte { width: 84px; height: 96px; }
+  .dica-capi-arte .capi { width: 84px; }
+  .dica-balao { margin: 12px 0; padding: 10px 12px; }
+  .dica-balao p { font-size: 14px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .capi *, .dica-capi * { animation: none !important; }
+}

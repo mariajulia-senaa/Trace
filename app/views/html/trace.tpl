@@ -7,6 +7,8 @@
     <title>Trace · veja pra onde foi sua fatura</title>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;600;700&display=swap">
     <link rel="stylesheet" type="text/css" href="/static/css/trace.css">
+    <link rel="stylesheet" type="text/css" href="/static/css/acesso.css">
+    <link rel="stylesheet" type="text/css" href="/static/css/capi.css">
 </head>
 
 <body>
@@ -22,10 +24,12 @@
         <button type="button" class="aba" role="tab" id="aba-porquinhos" data-tab="porquinhos" aria-controls="porquinhos" aria-selected="false">Porquinhos</button>
         <button type="button" class="aba" role="tab" id="aba-investimentos" data-tab="investimentos" aria-controls="investimentos" aria-selected="false">Investimentos</button>
     </nav>
-    <span class="privacidade">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="7" rx="2"/><rect x="3" y="13" width="18" height="7" rx="2"/><path d="M7 7.5h.01M7 16.5h.01"/></svg>
-        Dados salvos no servidor (Nível 2)
-    </span>
+    <div class="conta">
+        <a class="conta-nome" href="/conta" title="Minha conta"><span class="avatar" aria-hidden="true">{{usuario.primeiro_nome[:1].upper()}}</span>Olá, <strong>{{usuario.primeiro_nome}}</strong></a>
+        <form method="post" action="/sair">
+            <button type="submit" class="botao pequeno" id="btn-sair">Sair</button>
+        </form>
+    </div>
 </header>
 
 <main class="conteudo">
@@ -288,7 +292,20 @@
             <p class="aviso" id="pq-aviso" role="status" aria-live="polite" hidden></p>
         </div>
 
+        <aside class="dica-capi" id="dica-porquinhos" aria-live="polite">
+            <div class="dica-capi-arte" aria-hidden="true">
+                % include('app/views/html/_capi', pose='porquinho')
+            </div>
+            <div class="dica-balao">
+                <span class="dica-titulo">Dica da Capi</span>
+                <p class="dica-texto">Carregando…</p>
+            </div>
+        </aside>
+
         <div id="pq-lista" class="grade-porquinhos"></div>
+        <template id="capi-porquinho">
+            % include('app/views/html/_capi', pose='porquinho')
+        </template>
 
         <div class="card novo-porquinho">
             <button type="button" class="botao" id="pq-abrir" aria-expanded="false" aria-controls="pq-form">+ Novo porquinho</button>
@@ -333,6 +350,7 @@
             <h1>Investimentos</h1>
             <p>Compare onde o dinheiro rende mais. Esta aba é independente dos porquinhos.</p>
         </div>
+
 
         <div class="inv-layout">
             <div class="card inv-form">
@@ -432,8 +450,8 @@
 </main>
 
 <footer class="rodape">
-    <span>Trace · projeto de Orientação a Objetos (BMVC, Nível 2)</span>
-    <button type="button" class="link" id="btn-apagar">Apagar todos os dados</button>
+    <span>Trace · projeto de Orientação a Objetos (BMVC, Nível 3) · conta de {{usuario.email}}</span>
+    <button type="button" class="link" id="btn-apagar">Apagar todos os meus dados</button>
 </footer>
 
 <div id="toast" class="toast" role="status" aria-live="polite"></div>
@@ -445,6 +463,7 @@
 <script src="/static/js/painel.js"></script>
 <script src="/static/js/porquinhos.js"></script>
 <script src="/static/js/investimentos.js"></script>
+<script src="/static/js/capi.js"></script>
 
 </body>
 </html>

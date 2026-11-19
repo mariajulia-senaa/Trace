@@ -1,7 +1,7 @@
 import re
 from datetime import date
 
-from app.controllers.repositorio import Repositorio
+from app.controllers.repositorio import RepositorioDoUsuario
 from app.models.categoria import Categoria
 from app.models.erros import ErroDeValidacao
 from app.models.fatura import Fatura
@@ -52,12 +52,15 @@ class Financas():
     """Controller das regras do Trace: junta os Models e o Repositório.
 
     As rotas (route.py) só recebem a requisição e chamam um método daqui.
+    Nível 3: cada objeto Financas trabalha só com os dados de um usuário
+    (os repositórios são RepositorioDoUsuario, filhos de Repositorio).
     """
 
-    def __init__(self):
-        self.lancamentos = Repositorio('lancamentos', Lancamento)
-        self.porquinhos = Repositorio('porquinhos', Porquinho)
-        self.preferencias_repo = Repositorio('preferencias', Preferencias)
+    def __init__(self, usuario_id):
+        self.__usuario_id = usuario_id
+        self.lancamentos = RepositorioDoUsuario('lancamentos', Lancamento, usuario_id)
+        self.porquinhos = RepositorioDoUsuario('porquinhos', Porquinho, usuario_id)
+        self.preferencias_repo = RepositorioDoUsuario('preferencias', Preferencias, usuario_id)
         self.categorias = Categoria.padrao()
 
 
@@ -110,7 +113,7 @@ class Financas():
             'mes_atual': mes_atual(),
             'hoje': date.today().isoformat(),
             'meses': self.meses_disponiveis(),
-            'preferencias': self.preferencias().to_dict(),
+            'preferencias': {k: v for k, v in self.preferencias().to_dict().items() if k != 'usuario_id'},
             'fatura': self.fatura(mes).to_dict(),
             'mes_dos_porquinhos': atual,
             'porquinhos': [p.para_tela() for p in self.porquinhos.listar()]
@@ -299,6 +302,17 @@ class Financas():
             'investido': resultados['parado']['investido'],
             'opcoes': resultados,
             'melhor': melhor.CHAVE
+        }
+
+
+    # ------------------------------------------------------------ resumo da conta
+    def contagem(self):
+        lancamentos = self.lancamentos.listar()
+        return {
+            'lancamentos': len(lancamentos),
+            'parcelados': sum(1 for l in lancamentos if l.parcelado),
+            'porquinhos': len(self.porquinhos.listar()),
+            'limite': self.preferencias().limite
         }
 
 

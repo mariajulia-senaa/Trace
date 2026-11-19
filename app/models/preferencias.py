@@ -1,9 +1,9 @@
 from app.models.categoria import Categoria
 from app.models.erros import ErroDeValidacao
-from app.models.modelo import Modelo
+from app.models.modelo import ModeloDoUsuario
 
 
-class Preferencias(Modelo):
+class Preferencias(ModeloDoUsuario):
     """Model: as escolhas da pessoa que valem para todos os meses.
 
     - limite: quanto ela quer gastar, no máximo, por fatura;
@@ -17,8 +17,8 @@ class Preferencias(Modelo):
 
     LIMITE_PADRAO = 1500.0
 
-    def __init__(self, id=1, limite=LIMITE_PADRAO, limites=None, regras=None):
-        super().__init__(id)
+    def __init__(self, id=1, limite=LIMITE_PADRAO, limites=None, regras=None, usuario_id=None):
+        super().__init__(id, usuario_id)
         self.limite = limite
         self._limites = {}
         self._regras = {}
@@ -69,16 +69,17 @@ class Preferencias(Modelo):
 
     # ------------------------------------------------------------ dados
     def to_dict(self):
-        return {
+        return self.com_dono({
             'id': self.id,
             'limite': self._limite,
             'limites': dict(self._limites),
             'regras': dict(self._regras)
-        }
+        })
 
     @classmethod
     def from_dict(cls, d):
-        return cls(d.get('id', 1), d.get('limite', cls.LIMITE_PADRAO), d.get('limites'), d.get('regras'))
+        return cls(d.get('id', 1), d.get('limite', cls.LIMITE_PADRAO), d.get('limites'), d.get('regras'),
+                   d.get('usuario_id'))
 
     def descrever(self):
         return 'limite de R$ %.2f, %d regra(s) aprendida(s)' % (self._limite, len(self._regras))

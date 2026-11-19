@@ -1,6 +1,6 @@
 /* Trace · núcleo: conversa com o servidor (API), formatação, resumo e abas.
  *
- * Nível 2: os dados não ficam mais no navegador. Eles moram nos Models
+ * Nível 2/3: os dados não ficam mais no navegador. Eles moram nos Models
  * Python (Lancamento, Porquinho, Preferencias, Fatura) e chegam aqui pela
  * API JSON do Bottle. Os outros arquivos (fatura.js, painel.js,
  * porquinhos.js e investimentos.js) usam o objeto global "Trace".
@@ -120,6 +120,11 @@
       dados = await resposta.json();
     } catch (e) {
       /* resposta sem JSON */
+    }
+    if (resposta.status === 401) {
+      // sessão terminou (logout em outra aba, ou venceu): volta para o login
+      location.href = '/login';
+      throw new Error(dados.erro || 'Sua sessão terminou.');
     }
     if (!resposta.ok) {
       const erro = new Error(dados.erro || 'O servidor respondeu com erro ' + resposta.status + '.');
