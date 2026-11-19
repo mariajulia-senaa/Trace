@@ -25,6 +25,7 @@
         <button type="button" class="aba" role="tab" id="aba-investimentos" data-tab="investimentos" aria-controls="investimentos" aria-selected="false">Investimentos</button>
     </nav>
     <div class="conta">
+        <span class="ao-vivo conectando" id="ao-vivo" role="status" aria-live="polite" title="Atualização em tempo real (Websocket)"><i aria-hidden="true"></i><span id="ao-vivo-texto">Conectando…</span></span>
         <a class="conta-nome" href="/conta" title="Minha conta"><span class="avatar" aria-hidden="true">{{usuario.primeiro_nome[:1].upper()}}</span>Olá, <strong>{{usuario.primeiro_nome}}</strong></a>
         <form method="post" action="/sair">
             <button type="submit" class="botao pequeno" id="btn-sair">Sair</button>
@@ -450,7 +451,7 @@
 </main>
 
 <footer class="rodape">
-    <span>Trace · projeto de Orientação a Objetos (BMVC, Nível 3) · conta de {{usuario.email}}</span>
+    <span>Trace · projeto de Orientação a Objetos (BMVC, Nível 4) · conta de {{usuario.email}}</span>
     <button type="button" class="link" id="btn-apagar">Apagar todos os meus dados</button>
 </footer>
 
@@ -464,6 +465,8 @@
 <script src="/static/js/porquinhos.js"></script>
 <script src="/static/js/investimentos.js"></script>
 <script src="/static/js/capi.js"></script>
+<script src="/static/js/vendor/socket.io.min.js"></script>
+<script src="/static/js/tempo-real.js"></script>
 
 </body>
 </html>

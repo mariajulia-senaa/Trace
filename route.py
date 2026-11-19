@@ -1,3 +1,8 @@
+# Nível 4: o eventlet troca as funções de rede do Python por versões que
+# aguentam muitas conexões abertas ao mesmo tempo (Websocket). Tem que vir antes de tudo.
+import eventlet
+eventlet.monkey_patch()
+
 import json
 from functools import wraps
 from urllib.parse import quote
@@ -5,6 +10,8 @@ from urllib.parse import quote
 from app.controllers.application import Application
 from app.controllers.autenticacao import Autenticacao, ErroDeAcesso
 from app.controllers.financas import ErroDeValidacao
+from app.controllers.tempo_real import TempoReal
+import socketio
 from app.models.sessao import Sessao
 from bottle import Bottle, route, run, request, static_file
 from bottle import redirect, template, response, JSONPlugin
@@ -16,6 +23,7 @@ app.uninstall(JSONPlugin)
 app.install(JSONPlugin(json_dumps=lambda dados: json.dumps(dados, ensure_ascii=False)))
 ctl = Application()
 acesso = ctl.acesso
+tempo_real = TempoReal(acesso)
 
 
 #-----------------------------------------------------------------------------
@@ -88,7 +96,10 @@ def fazer_cadastro():
 
 @app.post('/sair')
 def sair():
+    usuario = usuario_logado()
     acesso.sair(request.get_cookie(Autenticacao.COOKIE))
+    if usuario:
+        tempo_real.encerrar_sessao(usuario.id)
     response.delete_cookie(Autenticacao.COOKIE, path='/')
     redirect('/login?saiu=1')
 
@@ -139,6 +150,7 @@ def conta_senha():
         f = request.forms
         acesso.trocar_senha(usuario, f.getunicode('atual', ''), f.getunicode('nova', ''),
                             f.getunicode('confirmacao', ''), token_atual())
+        tempo_real.encerrar_sessao(usuario.id)     # as outras telas conferem a sessão
         redirect('/conta?ok=senha')
     return acao_da_conta(trocar)
 
@@ -147,6 +159,7 @@ def conta_senha():
 def conta_sessoes():
     def encerrar(usuario):
         acesso.encerrar_outras_sessoes(usuario, token_atual())
+        tempo_real.encerrar_sessao(usuario.id)
         redirect('/conta?ok=sessoes')
     return acao_da_conta(encerrar)
 
@@ -155,6 +168,7 @@ def conta_sessoes():
 def conta_excluir():
     def excluir(usuario):
         acesso.excluir_conta(usuario, request.forms.getunicode('senha', ''))
+        tempo_real.encerrar_sessao(usuario.id)
         response.delete_cookie(Autenticacao.COOKIE, path='/')
         redirect('/login?excluida=1')
     return acao_da_conta(excluir)
@@ -171,77 +185,90 @@ def action_trace():
 
 
 # ---------- API (JSON) usada pelo JavaScript da página ----------
-def api(funcao):
+def api(aviso=None):
     """Só responde para quem está logado (senão 401) e entrega à rota o
-    controller de finanças daquela pessoa. Erros viram JSON 400/404."""
-    @wraps(funcao)
-    def envolvida(*args, **kwargs):
-        response.content_type = 'application/json; charset=utf-8'
-        usuario = usuario_logado()
-        if usuario is None:
-            response.status = 401
-            return {'erro': 'Sua sessão terminou. Entre de novo.'}
-        try:
-            return funcao(ctl.financas_de(usuario), *args, **kwargs)
-        except ErroDeValidacao as erro:
-            response.status = 400
-            return {'erro': str(erro)}
-        except KeyError:
-            response.status = 404
-            return {'erro': 'Registro não encontrado.'}
-    return envolvida
+    controller de finanças daquela pessoa. Erros viram JSON 400/404.
+
+    Nível 4: se a rota muda dados, 'aviso' é a frase enviada pelo Websocket
+    às outras telas abertas da mesma pessoa, que se atualizam sozinhas."""
+    def decorador(funcao):
+        @wraps(funcao)
+        def envolvida(*args, **kwargs):
+            response.content_type = 'application/json; charset=utf-8'
+            usuario = usuario_logado()
+            if usuario is None:
+                response.status = 401
+                return {'erro': 'Sua sessão terminou. Entre de novo.'}
+            try:
+                resultado = funcao(ctl.financas_de(usuario), *args, **kwargs)
+            except ErroDeValidacao as erro:
+                response.status = 400
+                return {'erro': str(erro)}
+            except KeyError:
+                response.status = 404
+                return {'erro': 'Registro não encontrado.'}
+            if aviso:
+                texto = aviso(resultado) if callable(aviso) else aviso
+                tempo_real.avisar_mudanca(usuario.id, texto, request.get_header('X-Trace-Cliente'))
+            return resultado
+        return envolvida
+    return decorador
 
 
 def corpo():
     return request.json or {}
 
 
+def brl(valor):
+    return 'R$ ' + '{:,.2f}'.format(valor).replace(',', 'X').replace('.', ',').replace('X', '.')
+
+
 @app.get('/api/estado')
-@api
+@api()
 def api_estado(financas):
     return financas.estado(request.query.get('mes'))
 
 
 # Lançamentos: CRUD completo
 @app.post('/api/lancamentos')
-@api
+@api(lambda r: 'Novo lançamento: %s (%s)' % (r['lancamento']['descricao'], brl(r['lancamento']['valor'])))
 def api_criar_lancamento(financas):
     l = financas.criar_lancamento(corpo())
     return {'lancamento': l.para_tela()}
 
 @app.put('/api/lancamentos/<id:int>')
-@api
+@api(lambda r: 'Lançamento alterado: %s' % r['lancamento']['descricao'])
 def api_atualizar_lancamento(financas, id):
     l, parecidos = financas.atualizar_lancamento(id, corpo())
     return {'lancamento': l.para_tela(), 'parecidos': parecidos}
 
 @app.delete('/api/lancamentos/<id:int>')
-@api
+@api('Um lançamento foi removido.')
 def api_remover_lancamento(financas, id):
     financas.remover_lancamento(id)
     return {'ok': True}
 
 @app.delete('/api/meses/<mes>')
-@api
+@api('Os lançamentos de um mês foram apagados.')
 def api_limpar_mes(financas, mes):
     return {'removidos': financas.limpar_mes(mes)}
 
 @app.post('/api/importar')
-@api
+@api(lambda r: '%d lançamento(s) importado(s).' % r['criados'])
 def api_importar(financas):
     dados = corpo()
     novos, ignoradas = financas.importar(dados.get('texto', ''), dados.get('mes'))
     return {'criados': len(novos), 'ignoradas': ignoradas}
 
 @app.post('/api/exemplo')
-@api
+@api('A fatura de exemplo foi carregada.')
 def api_exemplo(financas):
     return {'criados': financas.carregar_exemplo()}
 
 
 # Preferências (limite do mês e limites por categoria)
 @app.put('/api/preferencias')
-@api
+@api(lambda r: 'Limite do mês: %s' % brl(r['preferencias']['limite']))
 def api_preferencias(financas):
     p = financas.atualizar_preferencias(corpo()).to_dict()
     p.pop('usuario_id', None)
@@ -250,18 +277,18 @@ def api_preferencias(financas):
 
 # Porquinhos: CRUD completo
 @app.post('/api/porquinhos')
-@api
+@api(lambda r: 'Novo porquinho: %s' % r['porquinho']['nome'])
 def api_criar_porquinho(financas):
     return {'porquinho': financas.criar_porquinho(corpo()).para_tela()}
 
 @app.put('/api/porquinhos/<id:int>')
-@api
+@api(lambda r: '%s agora recebe %s por mês.' % (r['porquinho']['nome'], brl(r['porquinho']['aporte'])))
 def api_atualizar_porquinho(financas, id):
     p, aviso = financas.atualizar_porquinho(id, corpo())
     return {'porquinho': p.para_tela(), 'aviso': aviso}
 
 @app.delete('/api/porquinhos/<id:int>')
-@api
+@api('Um porquinho foi removido.')
 def api_remover_porquinho(financas, id):
     financas.remover_porquinho(id)
     return {'ok': True}
@@ -269,21 +296,26 @@ def api_remover_porquinho(financas, id):
 
 # Investimentos: cálculo nos Models (Investimento -> Parado, Poupança, CDB)
 @app.post('/api/investimentos')
-@api
+@api()
 def api_investimentos(financas):
     return financas.simular_investimentos(corpo())
 
 
 @app.delete('/api/tudo')
-@api
+@api('Todos os dados foram apagados.')
 def api_apagar_tudo(financas):
     financas.apagar_tudo()
     return {'ok': True}
 
 
 #-----------------------------------------------------------------------------
+# Nível 4: o Socket.IO atende o Websocket em /socket.io/ e passa todo o
+# resto (páginas, arquivos estáticos e API) para o Bottle.
+
+application = socketio.WSGIApp(tempo_real.sio, app)
 
 
 if __name__ == '__main__':
 
-    run(app, host='0.0.0.0', port=8080, debug=True)
+    print('Trace (Nível 4) em http://0.0.0.0:8080/ com Websocket')
+    eventlet.wsgi.server(eventlet.listen(('0.0.0.0', 8080)), application)

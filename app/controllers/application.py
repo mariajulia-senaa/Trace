@@ -7,7 +7,7 @@ from app.controllers.financas import Financas
 from app.models.categoria import Categoria
 
 
-NIVEL = 3   # nível do BMVC (aparece no rodapé e muda alguns textos)
+NIVEL = 4   # nível do BMVC (aparece no rodapé e muda alguns textos)
 
 
 def para_script(dados):

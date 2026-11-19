@@ -11,6 +11,10 @@
   const Trace = (window.Trace = {});
   const CHAVE_INVEST = 'trace:invest';
 
+  // Nível 4: identifica esta aba. Vai junto em cada chamada à API para que o
+  // aviso do Websocket não volte para a própria aba que fez a mudança.
+  Trace.cliente = 'aba-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+
   // ---------- atalhos de DOM ----------
   Trace.$ = (seletor, raiz) => (raiz || document).querySelector(seletor);
   Trace.$$ = (seletor, raiz) => Array.from((raiz || document).querySelectorAll(seletor));
@@ -104,7 +108,7 @@
 
   // Chamada à API: devolve o JSON ou lança um erro com a mensagem do servidor.
   Trace.api = async function (metodo, url, corpo) {
-    const opcoes = { method: metodo, headers: { Accept: 'application/json' } };
+    const opcoes = { method: metodo, headers: { Accept: 'application/json', 'X-Trace-Cliente': Trace.cliente } };
     if (corpo !== undefined) {
       opcoes.headers['Content-Type'] = 'application/json';
       opcoes.body = JSON.stringify(corpo);
